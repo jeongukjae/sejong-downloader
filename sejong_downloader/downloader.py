@@ -8,6 +8,8 @@ import aiohttp
 
 from .logger import logger
 
+WORKER_COUNT = 40
+
 SEJONG_ARTICLE_INDEXING_LINK = "https://ithub.korean.go.kr/user/total/database/corpusList.do"
 SEJONG_ARTICLE_LINK = "https://ithub.korean.go.kr/user/total/database/corpusView.do"
 SEJONG_DOWNLOAD_LINK = "https://ithub.korean.go.kr/common/boardFileDownload.do"
@@ -52,7 +54,30 @@ async def download_sejong_corpus(base_path: str) -> None:
         article_list = _extract_article_list_from(indexing_page_content)
 
         logger.debug("trigger async coroutines for save article data")
-        await asyncio.gather(*(_save_attachements_in_article(base_path, article, session) for article in article_list))
+
+        queue = asyncio.Queue()
+        for article in article_list:
+            await queue.put((base_path, article, session))
+
+        workers = []
+        for i in range(WORKER_COUNT):
+            worker = asyncio.create_task(_download_worker(f"worker-{i}", queue))
+            workers.append(worker)
+
+        await queue.join()
+
+        for worker in workers:
+            worker.cancel()
+        await asyncio.gather(*workers, return_exceptions=True)
+
+
+async def _download_worker(name, queue):
+    while True:
+        base_path, article, session = await queue.get()
+        await _save_attachements_in_article(base_path, article, session)
+        queue.task_done()
+
+        logger.info(f"complete to download {article} in {name}")
 
 
 async def _get_cached(path: str) -> Optional[str]:
