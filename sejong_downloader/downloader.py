@@ -14,7 +14,7 @@ SEJONG_ARTICLE_INDEXING_LINK = "https://ithub.korean.go.kr/user/total/database/c
 SEJONG_ARTICLE_LINK = "https://ithub.korean.go.kr/user/total/database/corpusView.do"
 SEJONG_DOWNLOAD_LINK = "https://ithub.korean.go.kr/common/boardFileDownload.do"
 SEJONG_ZIP_DOWNLOAD_LINK = "https://ithub.korean.go.kr/common/boardFileZipDownload.do"
-SEJONG_DEFAULT_REQUEST_PARAMS = {"boardSeq": 2, "userId": 0, "pageUnit": 10000}
+SEJONG_DEFAULT_REQUEST_PARAMS = {"boardSeq": 2, "boardType": "CORPUS", "userId": 0, "pageUnit": 10000}
 SEJONG_DOWNLOAD_REQUEST_PARAMS = {
     **SEJONG_DEFAULT_REQUEST_PARAMS,
     "fileSeq": "1",
@@ -65,6 +65,7 @@ async def download_sejong_corpus(base_path: str) -> None:
             workers.append(worker)
 
         await queue.join()
+        logger.info("complete to download all corpus data")
 
         for worker in workers:
             worker.cancel()
@@ -72,12 +73,15 @@ async def download_sejong_corpus(base_path: str) -> None:
 
 
 async def _download_worker(name, queue):
-    while True:
-        base_path, article, session = await queue.get()
-        await _save_attachements_in_article(base_path, article, session)
-        queue.task_done()
+    try:
+        while True:
+            base_path, article, session = queue.get_nowait()
+            await _save_attachements_in_article(base_path, article, session)
+            queue.task_done()
 
-        logger.info(f"complete to download {article} in {name}")
+            logger.info(f"complete to download {article} in {name}")
+    except asyncio.QueueEmpty:
+        logger.info(f"queue is empty now, exit {name}")
 
 
 async def _get_cached(path: str) -> Optional[str]:
@@ -131,8 +135,7 @@ async def _save_attachements_in_article(base_path: str, article: Article, sessio
     file_sequence_value = _get_file_sequence_values_from(article_content)
 
     corpus_path = os.path.join(
-        base_path,
-        f"{int(article.article_num):04}_{article.title}.{'zip' if ',' in file_sequence_value else 'text'}",
+        base_path, f"{int(article.article_num):04}_{article.title}.{'zip' if ',' in file_sequence_value else 'text'}"
     )
     if os.path.exists(corpus_path) and os.path.getsize(corpus_path) != 0:
         logger.debug(f"skip to download {article}")
