@@ -121,3 +121,12 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+.DS_Store
+.vscode/settings.json
+
+data/
+
+# 나 테스트할 용도
+test.html
+test2.html
