@@ -8,7 +8,7 @@ import aiohttp
 
 from .logger import logger
 
-WORKER_COUNT = 40
+WORKER_COUNT = 200
 
 SEJONG_ARTICLE_INDEXING_LINK = "https://ithub.korean.go.kr/user/total/database/corpusList.do"
 SEJONG_ARTICLE_LINK = "https://ithub.korean.go.kr/user/total/database/corpusView.do"
@@ -57,7 +57,7 @@ async def download_sejong_corpus(base_path: str) -> None:
 
         queue = asyncio.Queue()
         for article in article_list:
-            await queue.put((base_path, article, session))
+            queue.put_nowait((base_path, article, session))
 
         workers = []
         for i in range(WORKER_COUNT):
@@ -68,7 +68,7 @@ async def download_sejong_corpus(base_path: str) -> None:
 
         for worker in workers:
             worker.cancel()
-        await asyncio.gather(*workers, return_exceptions=True)
+        await asyncio.gather(*workers)
 
 
 async def _download_worker(name, queue):
@@ -131,7 +131,8 @@ async def _save_attachements_in_article(base_path: str, article: Article, sessio
     file_sequence_value = _get_file_sequence_values_from(article_content)
 
     corpus_path = os.path.join(
-        base_path, f"test_{article.article_num}_corpus.{'zip' if ',' in file_sequence_value else 'text'}"
+        base_path,
+        f"{int(article.article_num):04}_{article.title}.{'zip' if ',' in file_sequence_value else 'text'}",
     )
     if os.path.exists(corpus_path) and os.path.getsize(corpus_path) != 0:
         logger.debug(f"skip to download {article}")
