@@ -93,6 +93,10 @@ async def _get_cached(path: str) -> Optional[str]:
         return None
 
 
+def _get_valid_path_name(path: str):
+    return path.replace("/", "")
+
+
 async def _cache_to(content: Union[bytes, str], path: str) -> None:
     async with aiofiles.open(path, "wb" if isinstance(content, bytes) else "w") as f:
         logger.debug(f"cache to {path}")
@@ -135,13 +139,13 @@ async def _save_attachements_in_article(base_path: str, article: Article, sessio
     file_sequence_value = _get_file_sequence_values_from(article_content)
 
     corpus_path = os.path.join(
-        base_path, f"{int(article.article_num):04}_{article.title}.{'zip' if ',' in file_sequence_value else 'text'}"
+        base_path,
+        f"{int(article.article_num):04}_{_get_valid_path_name(article.title)}.{'zip' if ',' in file_sequence_value else 'text'}",
     )
     if os.path.exists(corpus_path) and os.path.getsize(corpus_path) != 0:
         logger.debug(f"skip to download {article}")
         return
 
-    logger.debug(f"start to download {article} ({file_sequence_value})")
     async with session.post(
         SEJONG_ZIP_DOWNLOAD_LINK if "," in file_sequence_value else SEJONG_DOWNLOAD_LINK,
         data={
@@ -154,7 +158,11 @@ async def _save_attachements_in_article(base_path: str, article: Article, sessio
     ) as response:
         if response.status != 200:
             raise ValueError(f"Cannot donwload {article} / {response.status} {await response.text()}")
-        await _save_articles_attachment(corpus_path, await response.read())
+
+        logger.debug(f"start to download {article} ({file_sequence_value}) {response.headers['Content-Length']}")
+        attachment_content = await response.read()
+        logger.debug(f"save content {article}")
+        await _save_articles_attachment(corpus_path, attachment_content)
 
 
 async def _fetch_article(article: Article, session: aiohttp.ClientSession) -> str:
