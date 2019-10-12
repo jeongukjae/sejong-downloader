@@ -14,4 +14,5 @@ setup(
     author="Jeong Ukjae",
     author_email="jeongukjae@gmail.com",
     packages=find_packages(exclude=["tests"]),
+    entry_points={"console_scripts": ["sejong-downloader = sejong_downloader.cli:main"]},
 )
