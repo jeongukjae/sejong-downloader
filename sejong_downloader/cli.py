@@ -9,4 +9,4 @@ parser.add_argument("-p", "--path", type=str, help="세종 코퍼스가 저장�
 
 def main():
     args = parser.parse_args()
-    asyncio.run(download_sejong_corpus(args.out))
+    asyncio.run(download_sejong_corpus(args.path))
