@@ -5,12 +5,12 @@ with open("README.md", "r") as readme:
 
 setup(
     name="sejong-downloader",
-    version="0.0.2",
+    version="1.0.0",
     description="Downloader for Sejong corpus",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/jeongukjae/sejong-downloader",
-    install_requires=["requests"],
+    install_requires=["aiohttp", "aiofiles"],
     author="Jeong Ukjae",
     author_email="jeongukjae@gmail.com",
     packages=find_packages(exclude=["tests"]),
